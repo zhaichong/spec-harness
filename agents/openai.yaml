@@ -1,0 +1,4 @@
+interface:
+  display_name: "Spec Harness"
+  short_description: "根据变更风险选择轻量、标准或严格的开发与验证工作流"
+  default_prompt: "Use $spec-harness to implement this change with a risk-appropriate specification and verification workflow."
