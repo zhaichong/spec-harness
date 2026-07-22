@@ -94,6 +94,61 @@ $spec-harness 为当前 API 增加幂等校验，并说明兼容性影响。
 
 个人全局安装对同一用户的 IDE 生效；项目级安装适合只对当前仓库生效的团队工作流。
 
+## 在 Claude Code 中使用
+
+Claude Code 同样支持 `SKILL.md` 格式。目录名决定斜杠命令，因此本 Skill 在 Claude Code 中的显式调用名是 `/spec-harness`；Claude 也会根据 frontmatter 的 `description` 自动匹配任务。[Claude Code Skills 文档](https://code.claude.com/docs/en/skills)
+
+### 个人全局安装
+
+Windows PowerShell：
+
+```powershell
+New-Item -ItemType Directory -Force 'C:\Users\<你的用户名>\.claude\skills' | Out-Null
+git clone https://github.com/zhaichong/spec-harness.git 'C:\Users\<你的用户名>\.claude\skills\spec-harness'
+```
+
+macOS 或 Linux：
+
+```bash
+mkdir -p ~/.claude/skills
+git clone https://github.com/zhaichong/spec-harness.git ~/.claude/skills/spec-harness
+```
+
+个人级安装对该用户的所有 Claude Code 项目可用。
+
+### 项目级安装
+
+在项目根目录运行：
+
+```bash
+mkdir -p .claude/skills
+git clone https://github.com/zhaichong/spec-harness.git .claude/skills/spec-harness
+```
+
+将 `.claude/skills/spec-harness` 提交到项目 Git 仓库后，团队成员和 Claude Code cloud session 都可以使用它。
+
+### 调用
+
+在项目目录启动 Claude Code：
+
+```bash
+claude
+```
+
+然后输入：
+
+```text
+/spec-harness 为订单 API 增加幂等校验，并说明兼容性影响。
+```
+
+也可以直接描述符合 Skill 范围的任务，让 Claude 自动选择：
+
+```text
+为客户数据导入增加 dry-run、失败记录和恢复方案。
+```
+
+更新已有 Skill 时，Claude Code 会监控个人级和项目级 Skill 目录；如果在当前会话开始后才新建了顶层 `skills` 目录，请重启 Claude Code。
+
 ## 在 ZCode Agent 中使用
 
 ZCode 支持直接导入其他 Agent 的 Skill。优先使用导入功能，因为它可以复用本机的 Codex 安装目录。[ZCode Skill 文档](https://zcode.z.ai/en/docs/skill)
