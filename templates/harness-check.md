@@ -10,6 +10,10 @@
 | 静态检查 | | pass/fail/skipped | |
 | 自动化测试 | | pass/fail/skipped | |
 | 构建/打包 | | pass/fail/skipped | |
+| 前端验证 | 浏览器、交互、状态或前端构建 | pass/fail/skipped | |
+| Java 后端验证 | 单元/集成测试、接口或服务端构建 | pass/fail/skipped | |
+| 契约验证 | 字段、错误、权限与兼容性 | pass/fail/skipped | |
+| 端到端验证 | 主路径及关键失败路径 | pass/fail/skipped | |
 | 专项验证 | | pass/fail/skipped | |
 | 手工验证 | | pass/fail/skipped | |
 

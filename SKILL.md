@@ -1,6 +1,6 @@
 ---
 name: spec-harness
-description: 为功能开发、跨文件修改、缺陷修复、数据取数、批量操作、迁移及其他需要范围控制或验证证据的工程任务执行风险自适应的 Spec + Harness 流程。根据复杂度和风险选择 Fast、Standard 或 Strict；对小型低风险修改保持轻量，对需求含糊、高风险、不可逆或具有外部副作用的操作设置人工确认卡点。
+description: 为前端、Java 后端及前后端联动的功能开发、跨文件修改、缺陷修复、数据取数、批量操作、迁移及其他需要范围控制或验证证据的工程任务执行风险自适应的 Spec + Harness 流程。根据复杂度和风险选择 Fast、Standard 或 Strict；自动识别变更面并加载前端、Java 后端或全栈契约检查，对小型低风险修改保持轻量，对需求含糊、高风险、不可逆或具有外部副作用的操作设置人工确认卡点。
 ---
 
 # Spec + Harness 风险自适应开发
@@ -70,6 +70,17 @@ Standard 或 Strict 在项目根或用户指定工作区创建：
 - Git 分支、worktree 和未提交改动
 
 优先使用项目提供的结构化代码索引或专用工具；文字内容再用文件搜索。输出一段简短判断：已知事实、关键未知项、选择的档位及理由。
+
+#### 识别变更面并加载领域规则
+
+根据任务实际影响范围自动识别，不要求用户填写技术栈字段：
+
+- 出现 `package.json`、Vue/React 配置或浏览器页面代码，且任务触及界面或前端状态：读取 `references/frontend.md`。
+- 出现 `pom.xml`、`build.gradle`、Spring/Jakarta 等 Java 线索，且任务触及服务端：读取 `references/backend-java.md`。
+- 同一任务同时修改前端和后端，或改变双方共享的 API、事件、字段或错误语义：除对应领域规则外，再读取 `references/fullstack-contract.md`。
+- 混合仓库只加载任务实际触及的规则；识别结果会显著改变范围时再询问用户。
+
+领域规则补充而不替代本流程。前后端联动本身通常是 Standard；只有权限、迁移、批量写入、敏感数据、不可逆或生产副作用等风险才提升为 Strict。
 
 ### 2. 对焦需求
 
@@ -173,3 +184,9 @@ Strict 数据操作还必须检查：
 - `templates/tasks.md`：唯一进度面板及 AC 追踪
 - `templates/harness-check.md`：命令、证据和验收结论
 - `templates/session-log.md`：Strict 或长任务的关键事件记录
+
+## 领域规则导航
+
+- `references/frontend.md`：任务触及页面、交互、浏览器状态或前端构建时读取
+- `references/backend-java.md`：任务触及 Java 服务、接口、数据访问或服务端运行时读取
+- `references/fullstack-contract.md`：任务同时触及前后端或共享契约时读取
