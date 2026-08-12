@@ -1,4 +1,4 @@
 interface:
   display_name: "Spec Harness"
-  short_description: "为前端、Java 后端和全栈变更选择风险适配的开发与验证流程"
-  default_prompt: "Use $spec-harness to implement this frontend, Java backend, or full-stack change with a risk-appropriate specification and verification workflow."
+  short_description: "以 Spec 审核和定向验证约束前端、Java 与全栈变更"
+  default_prompt: "Use $spec-harness to implement this frontend, Java backend, or full-stack change with a risk-appropriate Spec review and targeted verification; skip final build/package unless it is required."
