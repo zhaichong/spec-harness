@@ -12,13 +12,21 @@ if str(SCRIPTS) not in sys.path:
 from check_spec import main
 
 
+SURFACES = """
+## 变更面
+- 数据写入/删除：否
+- 权限/敏感数据：否
+- 外部副作用：否
+- 不可逆：否
+"""
+
 SPEC = """# Spec
 > 流程档位：Standard
 > Spec 版本：v1
 > 原始需求：增加示例功能
 > 审核状态：未独立（用户明确接受）
 > 用户确认：v1，确认；接受未独立审核
-
+""" + SURFACES + """
 ## 验收标准
 - [ ] **AC-01** [风险：低] [证据类型：自动化] 示例行为可验证
 """
@@ -50,7 +58,7 @@ STRICT_SPEC = """# Spec
 > 原始需求：执行受控迁移
 > 审核状态：fresh review
 > 用户确认：待确认
-
+""" + SURFACES + """
 ## 验收标准
 - [ ] **AC-01** [风险：高] [证据类型：可复现命令] dry-run 输出可复核
 
@@ -143,7 +151,43 @@ class CheckSpecTest(unittest.TestCase):
     def test_draft_rejects_unmapped_high_risk_surface(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
-            (root / "spec.md").write_text(SPEC + "\n- 数据写入/删除：是\n", encoding="utf-8")
+            (root / "spec.md").write_text(SPEC.replace("数据写入/删除：否", "数据写入/删除：是"), encoding="utf-8")
+            with self._args(root, "draft"):
+                self.assertEqual(main(), 1)
+
+    def test_draft_rejects_unresolved_surface(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "spec.md").write_text(SPEC.replace("数据写入/删除：否", "数据写入/删除：是 / 否"), encoding="utf-8")
+            with self._args(root, "draft"):
+                self.assertEqual(main(), 1)
+
+    def test_draft_rejects_broad_kr_alias(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            spec = SPEC.replace("数据写入/删除：否", "数据写入/删除：是")
+            spec += "\n- KR-01 [日志写入] → AC-01\n"
+            (root / "spec.md").write_text(spec.replace("风险：低", "风险：高"), encoding="utf-8")
+            with self._args(root, "draft"):
+                self.assertEqual(main(), 1)
+
+    def test_draft_rejects_claimed_review_by_current_agent(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "session").mkdir()
+            spec = SPEC.replace("未独立（用户明确接受）", "fresh review")
+            spec += """
+## Spec 审核
+- 审核者：当前 Agent（非人工）
+- 审核版本与输入：Spec v1、原始需求、相关代码
+- 审核输出引用：session/independent-review.md
+- 独立性：fresh review
+"""
+            (root / "spec.md").write_text(spec, encoding="utf-8")
+            (root / "session" / "independent-review.md").write_text(
+                STRICT_REVIEW.replace("v2", "v1").replace("新 Agent", "当前 Agent（非人工）"),
+                encoding="utf-8",
+            )
             with self._args(root, "draft"):
                 self.assertEqual(main(), 1)
 
@@ -163,13 +207,59 @@ class CheckSpecTest(unittest.TestCase):
     def test_draft_ignores_unfilled_kr_template(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
-            leftover = "\n- 数据写入/删除：是\n- KR-01 [数据写入 / 权限敏感 / 外部副作用 / 不可逆] → AC-01\n"
-            (root / "spec.md").write_text(SPEC + leftover, encoding="utf-8")
+            leftover = "\n- KR-01 [数据写入 / 权限敏感 / 外部副作用 / 不可逆] → AC-01\n"
+            (root / "spec.md").write_text(SPEC.replace("数据写入/删除：否", "数据写入/删除：是") + leftover, encoding="utf-8")
             with self._args(root, "draft"):
                 self.assertEqual(main(), 1)
 
     def test_powershell_accepts_complete_traceability(self) -> None:
         self._assert_powershell(self.make_artifacts, "delivery", 0)
+
+    def test_ac_pattern_stays_on_one_line(self) -> None:
+        from check_spec import AC_PATTERN
+
+        text = "- [ ] **AC-01** [风险：高] 无证据类型\n- [ ] **AC-02** [风险：低] [证据类型：自动化] ok\n"
+        self.assertEqual(AC_PATTERN.findall(text), [("AC-02", "低", "自动化")])
+
+    def test_draft_accepts_unindependent_status_mentioning_fresh_review(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "spec.md").write_text(
+                SPEC.replace("未独立（用户明确接受）", "未独立（无法获得 fresh review）"),
+                encoding="utf-8",
+            )
+            with self._args(root, "draft"):
+                self.assertEqual(main(), 0)
+
+    def test_draft_rejects_unresolved_tier(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "spec.md").write_text(
+                SPEC.replace("流程档位：Standard", "流程档位：Standard / Strict"),
+                encoding="utf-8",
+            )
+            with self._args(root, "draft"):
+                self.assertEqual(main(), 1)
+
+    def test_delivery_rejects_prefix_version_match(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.make_artifacts(root)
+            (root / "spec.md").write_text(SPEC.replace("用户确认：v1，确认", "用户确认：v10，确认"), encoding="utf-8")
+            with self._args(root, "delivery"):
+                self.assertEqual(main(), 1)
+
+    def test_draft_rejects_review_conclusion_without_pass(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "session").mkdir()
+            (root / "spec.md").write_text(STRICT_SPEC, encoding="utf-8")
+            (root / "session" / "independent-review.md").write_text(
+                STRICT_REVIEW.replace("结论：通过", "结论：已修正问题"),
+                encoding="utf-8",
+            )
+            with self._args(root, "draft"):
+                self.assertEqual(main(), 1)
 
     def test_runtimes_accept_strict_draft_pass_conclusion(self) -> None:
         def write_strict(root: Path) -> None:
