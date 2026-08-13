@@ -1,16 +1,16 @@
 # Spec Harness
 
-面向 AI 编程 Agent 的风险自适应开发工作流。给出一句话需求即可开始；它会根据实际范围和风险选择 Fast、Standard 或 Strict，并在前端、Java 后端和前后端联动任务中加载相应检查。
+面向 AI 编程 Agent 的风险自适应开发工作流。给出一句话需求即可开始；Agent 按 `SKILL.md` 选择 Fast、Standard 或 Strict。领域细则目前覆盖前端、Java 后端和前后端契约；非 Java 后端走主流程，不套用 Java 约定。
+
+流程、档位、门禁、产物和校验命令以 `SKILL.md` 为准，不要在本文件另写一份。
 
 ## 快速开始
 
-在 Codex、Claude Code 或 ZCode 的对话中显式调用，然后直接描述需求：
+在 Codex、Claude Code、Grok 或 ZCode 中显式调用，然后直接描述需求：
 
 ```text
 $spec-harness 给患者列表增加姓名搜索，保留现有分页和筛选条件。
 ```
-
-Fast 任务会直接开始；Standard 和 Strict 任务会先写完并审核 Spec，再请你确认后编码。只有会明显改变行为的歧义，才需要额外向你提问。
 
 常用示例：
 
@@ -23,64 +23,6 @@ $spec-harness 给用户管理页增加批量禁用；前后端同时修改，先
 
 $spec-harness 编写客户数据迁移。先提供 dry-run、回滚和对账方案，不要执行生产写入。
 ```
-
-## 一次任务会怎样执行
-
-1. 读取项目规则、相关代码、构建测试配置和当前工作区状态。
-2. 判断改动面和流程档位；前端、Java 后端或全栈任务会加载对应规则。
-3. 明确可观察的验收标准、边界和风险；用 fresh review 审核 Spec 中的事实、假设和遗漏项，不能 fresh review 时明确标为未独立。
-4. 实施最小必要改动，并执行与改动直接相关的验证；默认不做最终打包。
-5. 交付改动摘要、验收结果、验证证据和遗留风险。
-
-Fast 任务中，清晰的实施请求本身就是实施授权；Standard / Strict 仍在 Spec 审核完成后等你确认。Skill 不会自动合并、发布、写生产数据库或执行其他外部副作用操作。
-
-## 选择档位
-
-| 档位 | 适用场景 | 默认产物 |
-|---|---|---|
-| Fast | 文案、小修复、局部测试、可逆且范围清晰的改动 | 聊天内范围与验证结果 |
-| Standard | 普通功能、跨文件修改、一般回归风险 | Spec、任务清单、检查报告；复杂时补充方案 |
-| Strict | 批量写入、迁移、权限/安全、不可逆或外部操作 | 完整 Spec、方案、任务、检查和关键事件记录 |
-
-Fast 通常不会创建文件；Standard 和 Strict 会在项目根目录创建 `.spec/<日期>-<需求>/`。其中 `tasks.md` 是唯一进度面板，验收标准可通过 `AC-01 → T-01 → 检查证据` 追踪。
-
-Fast 仅用于不触及接口、数据写入、权限、外部系统、公共组件/共享状态或跨文件调用链的局部可逆改动；拿不准时会升级为 Standard，并在聊天中说明范围和最小验证。
-
-## 前端、Java 后端与全栈任务
-
-无需填写技术栈字段，Skill 会按任务和仓库线索自动分流：
-
-| 任务类型 | 会额外关注 |
-|---|---|
-| 前端 | 路由和状态影响、加载/空/错误状态、重复提交、浏览器验证、公共组件兼容性 |
-| Java 后端 | 参数校验、鉴权和数据权限、事务、幂等、并发、异常脱敏、迁移与 API 兼容性 |
-| 前后端联动 | 请求/响应字段、空值和枚举、错误码、权限、Mock 与正式接口一致性、端到端主路径 |
-
-前后端同时修改通常仍是 Standard；只有涉及数据迁移、批量写入、权限、敏感数据或生产副作用时才会提升为 Strict。
-
-## 你会得到什么
-
-- 小改动：已完成的范围和实际验证结果，不额外制造文档。
-- 普通功能：需求、任务、验收标准和检查证据，便于 Review 和后续返工。
-- 高风险任务：实施前的风险、回滚和执行范围确认，以及 dry-run、对账或恢复证据。
-
-它不会替你决定业务取舍，也不能替代真实联调或人工 Review；它的作用是让这些风险和缺口在开发过程中明确暴露出来。
-
-## Spec 确认与编码门禁
-
-用户把需求说清楚后，Skill 先探测项目、生成并审核 `spec.md` 草案；这一步**不等于**允许编码。审核优先使用 fresh review，只读取需求、代码和 Spec；没有 fresh review 时必须写明“未独立”，并由你明确决定是否接受该状态继续。事实来源由 Agent 填写为用户原话、代码或文档位置，或带范围和时间的可复现命令/查询记录；不要求你额外提供。
-
-| 档位 | 用户确认前允许做什么 | 何时可以编码 |
-|---|---|---|
-| Fast | 说明范围与验证方式 | 默认可直接执行；用户可要求提升档位 |
-| Standard | 探测、澄清、创建/更新并审核 Spec 草案 | fresh review 后用户明确确认；未独立时还须明确接受未独立审核 |
-| Strict | 探测、澄清、创建/更新并审核 Spec 草案 | Spec 确认后；外部执行前还需再次确认 |
-
-Standard / Strict 在确认前禁止写 `plan.md`、`tasks.md`、业务代码或迁移脚本。若用户修改需求，先更新 Spec；凡影响目标、范围、事实、假设、AC、数据/外部副作用或风险的修改，都要重新审核后再确认。
-
-Standard / Strict 会在确认前和待交付前运行 Skill 自带的结构检查：`python <本 Skill 根目录>/scripts/check_spec.py <.spec/任务目录> --stage draft|delivery`；没有 Python 时运行 `powershell -ExecutionPolicy Bypass -File <本 Skill 根目录>/scripts/check_spec.ps1 -SpecDir <.spec/任务目录> -Stage draft|delivery`。它会检查 AC 风险与证据类型、关键风险映射、任务映射、重复/空证据、任务目录内的证据材料和独立审核记录，但不会运行项目构建、打包、测试或网络操作；两种运行时都不可用时会阻塞，而不是以手工清单放行。
-
-Strict 没有人工或 fresh review 时处于阻塞，不能以“未独立”继续；待交付前还需要版本匹配且结论为“通过”的 `delivery-review.md`；每个仍在 Spec 中的 AC 都必须 `pass` 并有证据才能待交付。Strict 的外部操作还会把精确范围、预览证据和本次确认原话写入日志；范围变化后必须重新确认。若同名 Spec 目录已存在，Skill 会复用同一任务或添加序号，绝不覆盖。
 
 ## 安装
 
@@ -108,7 +50,18 @@ git clone https://github.com/zhaichong/spec-harness.git '.agents\skills\spec-har
 
 将 `.agents/skills/spec-harness` 提交到项目 Git 仓库后，团队成员克隆项目即可使用同一套流程。
 
-> 不要长期同时保留用户级和项目级的同名 Skill。Codex 不会合并它们，可能在选择器中出现两个 `spec-harness`。
+> 不要长期同时保留用户级和项目级的同名 Skill。同一 Agent 不会合并它们，可能出现两个 `spec-harness`。
+
+### 个人全局安装（Grok）
+
+PowerShell：
+
+```powershell
+New-Item -ItemType Directory -Force 'C:\Users\<你的用户名>\.grok\skills' | Out-Null
+git clone https://github.com/zhaichong/spec-harness.git 'C:\Users\<你的用户名>\.grok\skills\spec-harness'
+```
+
+若 Codex 已装在 `.agents\skills\spec-harness`，不要再维护一份会漂的副本：把 `.grok\skills\spec-harness` 做成指向前者的目录联接，或每次改完后把同一提交同步过去。
 
 ## 在 Codex 中使用
 
@@ -266,7 +219,7 @@ $spec-harness 编写数据迁移脚本，将重复客户合并。先生成 dry-r
 git pull --ff-only
 ```
 
-随后在 Codex 重启应用或新建任务；在 ZCode 的 **Settings → Skills** 中点击 **Refresh**。如果使用 ZCode 的 Copy 导入，请重新导入或手动替换副本。
+随后在 Codex 或 Grok 重启应用或新建任务；在 ZCode 的 **Settings → Skills** 中点击 **Refresh**。如果使用 ZCode 的 Copy 导入，请重新导入或手动替换副本。同时使用 `.agents` 和 `.grok` 两份安装时，必须同步到同一提交，不要只更新其中一份。
 
 ## 排查
 

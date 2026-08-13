@@ -5,7 +5,8 @@
 
 $ErrorActionPreference = 'Stop'
 $errors = [System.Collections.Generic.List[string]]::new()
-$generic = @('', '无', '不适用', 'n/a', 'na', '待确认', '待填写', '未填写', '正常', '通过', '已验证', 'pass', '-', '…')
+$placeholders = @('', '无', '不适用', 'n/a', 'na', '待确认', '待填写', '未填写')
+$genericEvidence = $placeholders + @('正常', '通过', '已验证', 'pass', '-', '…')
 $independentActors = @('新上下文', '新 agent', '不同模型', '人工')
 $strictActors = @('新 agent', '不同模型', '人工')
 
@@ -25,7 +26,7 @@ function Get-Value([string]$Text, [string]$Label) {
 
 function Test-Unresolved([string]$Value) {
     if ([string]::IsNullOrWhiteSpace($Value) -or $Value.Contains('{{')) { return $true }
-    return $generic -contains $Value.Trim().ToLowerInvariant()
+    return $placeholders -contains $Value.Trim().ToLowerInvariant()
 }
 
 function Test-IndependentActor([string]$Value, [bool]$Strict = $false) {
@@ -37,7 +38,7 @@ function Test-IndependentActor([string]$Value, [bool]$Strict = $false) {
 
 function Get-ACs([string]$Spec) {
     $items = @()
-    foreach ($match in [regex]::Matches($Spec, '\*\*(AC-\d+)\*\*.*风险：\s*(低|中|高).*证据类型：\s*(自动化|可复现命令|浏览器|人工)')) {
+    foreach ($match in [regex]::Matches($Spec, '\*\*(AC-\d+)\*\*.*风险：\s*(低|中|高)(?!\s*/).*证据类型：\s*(自动化|可复现命令|浏览器|人工)(?!\s*/)')) {
         $items += [pscustomobject]@{ Id = $match.Groups[1].Value; Risk = $match.Groups[2].Value; EvidenceType = $match.Groups[3].Value }
     }
     return $items
@@ -68,7 +69,9 @@ function Test-Review([string]$Root, [string]$Spec, [bool]$Strict) {
 function Test-RiskMapping([string]$Spec, $Acs) {
     $mapping = @{}
     foreach ($match in [regex]::Matches($Spec, '(?m)^-\s*KR-\d+\s*\[([^]]+)\]\s*→\s*(.+)$')) {
-        $mapping[$match.Groups[1].Value] = [regex]::Matches($match.Groups[2].Value, 'AC-\d+') | ForEach-Object { $_.Value }
+        $kind = $match.Groups[1].Value
+        if ($kind.Contains('/') -or $kind.Contains('{{')) { continue }
+        $mapping[$kind] = [regex]::Matches($match.Groups[2].Value, 'AC-\d+') | ForEach-Object { $_.Value }
     }
     $riskTerms = @{ '数据写入/删除' = @('数据写入', '写入', '删除'); '权限/敏感数据' = @('权限', '敏感'); '外部副作用' = @('外部', '副作用'); '不可逆' = @('不可逆') }
     $highIds = @($Acs | Where-Object { $_.Risk -eq '高' } | ForEach-Object { $_.Id })
@@ -142,7 +145,7 @@ if ($Stage -eq 'delivery' -and $spec) {
         if (@('自动化','可复现命令','浏览器','人工') -notcontains $type) { $errors.Add("AC 证据类型非法：$id = $type") }
         $artifact = [regex]::Match($evidence, '(?i)(?:文件|file)\s*[:：]\s*([^\s#；;|]+)')
         $summary = [regex]::Replace($evidence, '(?i)(?:文件|file)\s*[:：]\s*([^\s#；;|]+)', '').Trim(' ', '；', ';', '，', ',')
-        if ($generic -contains $summary.ToLowerInvariant() -or $evidence.Contains('{{')) { $errors.Add("AC 证据为空或过于泛化：$id") }
+        if ($genericEvidence -contains $summary.ToLowerInvariant() -or $evidence.Contains('{{')) { $errors.Add("AC 证据为空或过于泛化：$id") }
         if (-not $artifact.Success) { $errors.Add("AC 证据缺少文件引用：$id") }
         else {
             $rootPath = [System.IO.Path]::GetFullPath($SpecDir)

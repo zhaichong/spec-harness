@@ -39,7 +39,7 @@ description: 为前端、Java 后端及前后端联动的功能开发、跨文�
 
 以下任一项通常提升档位：数据删除或批量写入、权限边界、敏感数据、公共 API、跨端兼容、迁移、难以回滚、生产资源、显著成本、第三方通知。
 
-Fast 仅在改动局部、可逆，且不触及接口/事件、数据库或文件写入、权限/敏感数据、外部系统、公共组件/共享状态或跨文件调用链时使用；拿不准即选 Standard。进入 Fast 前，在聊天中写明目标文件、为何不触及上述边界，以及最小验证方式。
+Fast 仅在改动局部、可逆，且不触及对外接口或事件、数据库结构或业务数据写入、权限/敏感数据、外部系统、公共组件/共享状态、跨文件调用链时使用。修改单个源码或测试文件本身不算业务数据写入。拿不准即选 Standard。进入 Fast 前，在聊天中写明目标文件、为何不触及上述边界，以及最小验证方式。
 
 进入 Fast 前逐项确认并在聊天中留下结论：目标和预期行为明确、改动可局部回退、不涉及上述任一边界、没有来源不明的未提交改动、最小验证可执行。任一项为“否”或“不确定”即升为 Standard；不得以“看起来很小”替代该判断。
 
@@ -54,9 +54,11 @@ Standard 或 Strict 在项目根或用户指定工作区创建：
   tasks.md
   check_reports/
     harness-check.md
+    delivery-review.md    # 待交付前必需
   evidence/                # AC 的命令输出、截图、dry-run 或对账材料
   session/
     log.md                # Standard 可选，Strict 必需
+    independent-review.md # 声称 fresh review 或人工复查时必需；Strict 必需
 ```
 
 目录已存在时绝不覆盖：同一任务继续使用并记录原因；不同任务改用 `-2`、`-3` 等后缀。
@@ -86,6 +88,7 @@ Standard 或 Strict 在项目根或用户指定工作区创建：
 - 出现 `pom.xml`、`build.gradle`、Spring/Jakarta 等 Java 线索，且任务触及服务端：读取 `references/backend-java.md`。
 - 同一任务同时修改前端和后端，或改变双方共享的 API、事件、字段或错误语义：除对应领域规则外，再读取 `references/fullstack-contract.md`。
 - 混合仓库只加载任务实际触及的规则；识别结果会显著改变范围时再询问用户。
+- 非 Java 后端仍走主流程和通用验证，不加载 `references/backend-java.md`，也不套用 Spring/Jakarta 约定。
 
 领域规则补充而不替代本流程。前后端联动本身通常是 Standard；只有权限、迁移、批量写入、敏感数据、不可逆或生产副作用等风险才提升为 Strict。
 
@@ -124,7 +127,7 @@ Standard / Strict 在用户确认前，允许读取项目、回答问题和更�
 - 每个 AC 是否有触发条件和可观察、可判定的结果；
 - 是否遗漏会改变范围、权限、数据、接口、失败路径或风险等级的内容。
 
-Standard 必须尝试一次 fresh review；做不到时按上述规则自审并如实标记，且在请求 Spec 确认时明确说明“未获得独立审核”。此时只有用户明确接受未独立审核并继续，才能进入方案与编码。任何 Standard / Strict 声称 fresh review 或人工复查时，都必须使用 `templates/independent-review.md` 在 `session/independent-review.md` 保存审核输入、问题和结论，并从 Spec 链接该记录。记录必须包含可追溯审核来源和“未读取起草过程”的审核者声明；这是一项可审计声明，不被误表述为文件能自动证明的事实。Strict 只接受人工、新 Agent 或不同模型的独立复查，不能仅以“新上下文”满足门禁；无法完成或缺少上述可追溯记录时状态为阻塞，不能以“未独立”继续。审核发现的问题应先修正；需要用户决定的事项明确列为阻塞后，再请求用户确认。结论和遗留项写入 `spec.md`。
+Standard 必须尝试一次 fresh review；做不到时按上述规则自审并如实标记，且在请求 Spec 确认时明确说明“未获得独立审核”。同一会话里把当前 Agent 写成“新上下文”仍是未独立，不得称为 fresh review。此时只有用户明确接受未独立审核并继续，才能进入方案与编码。任何 Standard / Strict 声称 fresh review 或人工复查时，都必须使用 `templates/independent-review.md` 在 `session/independent-review.md` 保存审核输入、问题和结论，并从 Spec 链接该记录。记录必须包含可追溯审核来源和“未读取起草过程”的审核者声明；这是一项可审计声明，不被误表述为文件能自动证明的事实。Strict 只接受人工、新 Agent 或不同模型的独立复查，不能仅以“新上下文”满足门禁；无法完成或缺少上述可追溯记录时状态为阻塞，不能以“未独立”继续。审核发现的问题应先修正；需要用户决定的事项明确列为阻塞后，再请求用户确认。结论和遗留项写入 `spec.md`。
 
 Standard 在用户明确回复“确认”“确认 Spec”“OK”“开始编码”“直接实施”或“不需确认”等同义授权后，才能进入方案与编码；若标记“未独立”，还必须明确接受该状态。Strict 必须在独立复查完成后取得对当前 Spec 版本的明确确认，“不需确认”等概括性授权不足以跳过。用户完整、详细地描述需求本身不构成跳过门禁的授权。
 
@@ -192,7 +195,9 @@ Strict 执行外部写入、批处理、消息发送、云资源修改或其他�
 
 Standard / Strict 在请求确认前运行 `<本 Skill 根目录>/scripts/check_spec.py <.spec/任务目录> --stage draft`；在标记待交付前运行 `<本 Skill 根目录>/scripts/check_spec.py <.spec/任务目录> --stage delivery`。没有 Python 时运行等价的 `powershell -ExecutionPolicy Bypass -File <本 Skill 根目录>/scripts/check_spec.ps1 -SpecDir <.spec/任务目录> -Stage draft|delivery`。两者只检查 Spec、任务和检查报告的结构与映射，不运行项目构建、打包、测试或网络操作。两种运行时均不可用时阻塞并请求用户提供可运行的校验环境；不得以手工清单替代自动门禁。
 
-待交付前还必须填写 `check_reports/delivery-review.md`，其审核 Spec 版本须与当前版本一致且结论为“通过”。`n`nSpec 中每个 AC 默认都是必须验收项，必须在验收追踪表有一行 `pass` 及对应证据。`fail`、`partial` 或 `skipped` 表示不得待交付；只有先更新 Spec 移除或替换该 AC，并重新审核、重新确认后，才能继续。
+待交付前还必须填写 `check_reports/delivery-review.md`，其审核 Spec 版本须与当前版本一致且结论为“通过”。
+
+Spec 中每个 AC 默认都是必须验收项，必须在验收追踪表有一行 `pass` 及对应证据。`fail`、`partial` 或 `skipped` 表示不得待交付；只有先更新 Spec 移除或替换该 AC，并重新审核、重新确认后，才能继续。
 
 ### 7. 待交付
 
@@ -214,12 +219,13 @@ Standard / Strict 在请求确认前运行 `<本 Skill 根目录>/scripts/check_
 - `templates/tasks.md`：唯一进度面板及 AC 追踪
 - `templates/harness-check.md`：命令、证据和验收结论
 - `templates/session-log.md`：Strict 或长任务的关键事件记录
-- `templates/independent-review.md`：Strict 的独立审核记录`n- `templates/delivery-review.md`：Standard / Strict 待交付前的结构化审核记录
+- `templates/independent-review.md`：声称 fresh review 或人工复查时的独立审核记录；Strict 必需
+- `templates/delivery-review.md`：Standard / Strict 待交付前的结构化审核记录
 - `scripts/check_spec.ps1`：无需 Python 时的等价结构校验
 - `scripts/check_spec.py`：Spec、AC、任务与证据的轻量结构校验
 
 ## 领域规则导航
 
 - `references/frontend.md`：任务触及页面、交互、浏览器状态或前端构建时读取
-- `references/backend-java.md`：任务触及 Java 服务、接口、数据访问或服务端运行时读取
+- `references/backend-java.md`：任务触及 Java 服务、接口、数据访问或服务端运行时读取；非 Java 后端不读此文件
 - `references/fullstack-contract.md`：任务同时触及前后端或共享契约时读取

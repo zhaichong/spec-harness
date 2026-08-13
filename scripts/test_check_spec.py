@@ -1,8 +1,13 @@
+import sys
 import tempfile
 import unittest
 import shutil
 import subprocess
 from pathlib import Path
+
+SCRIPTS = Path(__file__).resolve().parent
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))
 
 from check_spec import main
 
@@ -142,19 +147,71 @@ class CheckSpecTest(unittest.TestCase):
             with self._args(root, "draft"):
                 self.assertEqual(main(), 1)
 
+    def test_draft_rejects_unfilled_ac_options(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "spec.md").write_text(
+                SPEC.replace(
+                    "[风险：低] [证据类型：自动化]",
+                    "[风险：低 / 中 / 高] [证据类型：自动化 / 可复现命令 / 浏览器 / 人工]",
+                ),
+                encoding="utf-8",
+            )
+            with self._args(root, "draft"):
+                self.assertEqual(main(), 1)
+
+    def test_draft_ignores_unfilled_kr_template(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            leftover = "\n- 数据写入/删除：是\n- KR-01 [数据写入 / 权限敏感 / 外部副作用 / 不可逆] → AC-01\n"
+            (root / "spec.md").write_text(SPEC + leftover, encoding="utf-8")
+            with self._args(root, "draft"):
+                self.assertEqual(main(), 1)
+
     def test_powershell_accepts_complete_traceability(self) -> None:
+        self._assert_powershell(self.make_artifacts, "delivery", 0)
+
+    def test_runtimes_accept_strict_draft_pass_conclusion(self) -> None:
+        def write_strict(root: Path) -> None:
+            (root / "session").mkdir()
+            (root / "spec.md").write_text(STRICT_SPEC, encoding="utf-8")
+            (root / "session" / "independent-review.md").write_text(STRICT_REVIEW, encoding="utf-8")
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            write_strict(root)
+            with self._args(root, "draft"):
+                self.assertEqual(main(), 0)
+        self._assert_powershell(write_strict, "draft", 0)
+
+    def _assert_powershell(self, populate, stage: str, expected: int) -> None:
         powershell = shutil.which("powershell") or shutil.which("pwsh")
         if not powershell:
             self.skipTest("PowerShell is unavailable")
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
-            self.make_artifacts(root)
+            populate(root)
             result = subprocess.run(
-                [powershell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(Path(__file__).with_name("check_spec.ps1")), "-SpecDir", str(root), "-Stage", "delivery"],
+                [
+                    powershell,
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    str(SCRIPTS / "check_spec.ps1"),
+                    "-SpecDir",
+                    str(root),
+                    "-Stage",
+                    stage,
+                ],
                 capture_output=True,
                 check=False,
             )
-            self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8", errors="replace"))
+            self.assertEqual(
+                result.returncode,
+                expected,
+                result.stderr.decode("utf-8", errors="replace") or result.stdout.decode("utf-8", errors="replace"),
+            )
 
     def _args(self, root: Path, stage: str):
         import sys

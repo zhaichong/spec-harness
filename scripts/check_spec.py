@@ -9,7 +9,9 @@ import sys
 from pathlib import Path
 
 
-AC_PATTERN = re.compile(r"\*\*(AC-\d+)\*\*.*风险：\s*(低|中|高).*证据类型：\s*(自动化|可复现命令|浏览器|人工)")
+AC_PATTERN = re.compile(
+    r"\*\*(AC-\d+)\*\*.*风险：\s*(低|中|高)(?!\s*/).*证据类型：\s*(自动化|可复现命令|浏览器|人工)(?!\s*/)"
+)
 TASK_PATTERN = re.compile(r"- \[[ xX]\] \*\*T-\d+\*\* \[(required|optional)\].*?→\s*(.+)")
 KR_PATTERN = re.compile(r"^-\s*(KR-\d+)\s*\[([^]]+)\]\s*→\s*(.+)$", re.MULTILINE)
 ARTIFACT_PATTERN = re.compile(r"(?:文件|file)\s*[:：]\s*([^\s#；;|]+)", re.IGNORECASE)
@@ -79,7 +81,11 @@ def validate_review(directory: Path, spec: str, strict: bool, errors: list[str])
 
 def validate_risk_mapping(spec: str, acs: list[tuple[str, str, str]], errors: list[str]) -> None:
     high_risk_ids = {ac_id for ac_id, risk, _ in acs if risk == "高"}
-    mappings = [(kind, set(re.findall(r"AC-\d+", linked))) for _, kind, linked in KR_PATTERN.findall(spec)]
+    mappings = [
+        (kind, set(re.findall(r"AC-\d+", linked)))
+        for _, kind, linked in KR_PATTERN.findall(spec)
+        if "/" not in kind and "{{" not in kind
+    ]
     for surface, keywords in RISK_SURFACES.items():
         if not re.search(rf"^-\s*{re.escape(surface)}：\s*是\s*$", spec, re.MULTILINE):
             continue
