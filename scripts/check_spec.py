@@ -59,13 +59,20 @@ def process_tier(spec: str) -> str | None:
     if raw is None:
         return None
     tier = raw.split("（", 1)[0].strip()
-    if tier in {"Standard", "Strict"}:
+    if tier in {"Spec", "Standard", "Strict"}:
         return tier
     return None
 
 
-def claims_independent_review(status: str | None, strict: bool) -> bool:
-    if strict:
+def elevated_risk(spec: str, surfaces: dict[str, str] | None = None) -> bool:
+    if process_tier(spec) == "Strict":
+        return True
+    values = surfaces if surfaces is not None else parse_risk_surfaces(spec, [])
+    return any(value == "是" for value in values.values())
+
+
+def claims_independent_review(status: str | None, elevated: bool) -> bool:
+    if elevated:
         return True
     text = status or ""
     if "未独立" in text:
@@ -85,7 +92,7 @@ def independent_actor(value: str | None) -> bool:
     return any(actor in normalized for actor in INDEPENDENT_ACTORS)
 
 
-def validate_review(directory: Path, spec: str, strict: bool, errors: list[str]) -> None:
+def validate_review(directory: Path, spec: str, elevated: bool, errors: list[str]) -> None:
     for label in ("审核者", "审核版本与输入", "审核输出引用", "独立性"):
         if unresolved(value_after(spec, label)):
             errors.append(f"独立审核记录未填写：{label}")
@@ -109,8 +116,8 @@ def validate_review(directory: Path, spec: str, strict: bool, errors: list[str])
         errors.append("独立审核文件缺少未读取起草过程的声明")
     if not conclusion_ok(value_after(review, "结论")):
         errors.append("独立审核文件没有有效的通过结论")
-    if strict and "未独立" in (value_after(spec, "独立性") or ""):
-        errors.append("Strict 不能以未独立状态通过审核")
+    if elevated and "未独立" in (value_after(spec, "独立性") or ""):
+        errors.append("高风险变更不能以未独立状态通过审核")
 
 
 def parse_risk_surfaces(spec: str, errors: list[str]) -> dict[str, str]:
@@ -128,14 +135,15 @@ def parse_risk_surfaces(spec: str, errors: list[str]) -> dict[str, str]:
     return values
 
 
-def validate_risk_mapping(spec: str, acs: list[tuple[str, str, str]], errors: list[str]) -> None:
+def validate_risk_mapping(
+    spec: str, acs: list[tuple[str, str, str]], surfaces: dict[str, str], errors: list[str]
+) -> None:
     high_risk_ids = {ac_id for ac_id, risk, _ in acs if risk == "高"}
     mappings = [
         (kind.strip(), set(re.findall(r"AC-\d+", linked)))
         for _, kind, linked in KR_PATTERN.findall(spec)
         if "/" not in kind and "{{" not in kind
     ]
-    surfaces = parse_risk_surfaces(spec, errors)
     for surface, aliases in RISK_SURFACES.items():
         if surfaces.get(surface) != "是":
             continue
@@ -151,7 +159,7 @@ def validate_draft(directory: Path, spec: str, errors: list[str]) -> list[tuple[
         if unresolved(value_after(spec, label)):
             errors.append(f"Spec 元数据未填写：{label}")
     if process_tier(spec) is None:
-        errors.append("流程档位必须写成 Standard 或 Strict")
+        errors.append("流程档位必须写成 Spec")
 
     acs = AC_PATTERN.findall(spec)
     ids = [ac_id for ac_id, _, _ in acs]
@@ -159,11 +167,12 @@ def validate_draft(directory: Path, spec: str, errors: list[str]) -> list[tuple[
         errors.append("未找到带风险和证据类型的 AC")
     if len(ids) != len(set(ids)):
         errors.append("AC 编号重复")
-    validate_risk_mapping(spec, acs, errors)
+    surfaces = parse_risk_surfaces(spec, errors)
+    validate_risk_mapping(spec, acs, surfaces, errors)
 
-    strict = process_tier(spec) == "Strict"
-    if claims_independent_review(value_after(spec, "审核状态"), strict):
-        validate_review(directory, spec, strict, errors)
+    elevated = elevated_risk(spec, surfaces)
+    if claims_independent_review(value_after(spec, "审核状态"), elevated):
+        validate_review(directory, spec, elevated, errors)
     return acs
 
 
@@ -253,13 +262,13 @@ def validate_strict_session_log(directory: Path, errors: list[str]) -> None:
         quote = cells[3] if len(cells) >= 4 else ""
         if not unresolved(quote):
             return
-    errors.append("Strict 外部授权记录必须写无，或填写用户确认原话")
+    errors.append("高风险外部授权记录必须写无，或填写用户确认原话")
 
 
 def validate_delivery(directory: Path, spec: str, acs: list[tuple[str, str, str]], errors: list[str]) -> None:
     validate_confirmation(spec, errors)
     validate_delivery_review(directory, spec, errors)
-    if process_tier(spec) == "Strict":
+    if elevated_risk(spec):
         require_nonempty(directory, "plan.md", errors)
         validate_strict_session_log(directory, errors)
 

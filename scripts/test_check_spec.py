@@ -21,7 +21,7 @@ SURFACES = """
 """
 
 SPEC = """# Spec
-> 流程档位：Standard
+> 流程档位：Spec
 > Spec 版本：v1
 > 原始需求：增加示例功能
 > 审核状态：未独立（用户明确接受）
@@ -161,6 +161,23 @@ class CheckSpecTest(unittest.TestCase):
             with self._args(root, "delivery"):
                 self.assertEqual(main(), 0)
 
+    def test_spec_surface_requires_independent_review(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "spec.md").write_text(
+                SPEC.replace("数据写入/删除：否", "数据写入/删除：是"),
+                encoding="utf-8",
+            )
+            with self._args(root, "draft"):
+                self.assertEqual(main(), 1)
+
+    def test_legacy_standard_tier_still_accepted(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "spec.md").write_text(SPEC.replace("流程档位：Spec", "流程档位：Standard"), encoding="utf-8")
+            with self._args(root, "draft"):
+                self.assertEqual(main(), 0)
+
     def test_strict_draft_requires_real_review_record(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -274,7 +291,7 @@ class CheckSpecTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             (root / "spec.md").write_text(
-                SPEC.replace("流程档位：Standard", "流程档位：Standard / Strict"),
+                SPEC.replace("流程档位：Spec", "流程档位：Spec / Fast"),
                 encoding="utf-8",
             )
             with self._args(root, "draft"):
