@@ -29,7 +29,9 @@ RISK_SURFACES = {
     "权限/敏感数据": ("权限/敏感数据", "权限敏感", "敏感数据", "权限"),
     "外部副作用": ("外部副作用",),
     "不可逆": ("不可逆",),
+    "生产或批量": ("生产或批量", "生产", "批量"),
 }
+ELEVATE_SURFACES = ("权限/敏感数据", "外部副作用", "不可逆", "生产或批量")
 
 
 def read(path: Path, errors: list[str]) -> str:
@@ -68,7 +70,7 @@ def elevated_risk(spec: str, surfaces: dict[str, str] | None = None) -> bool:
     if process_tier(spec) == "Strict":
         return True
     values = surfaces if surfaces is not None else parse_risk_surfaces(spec, [])
-    return any(value == "是" for value in values.values())
+    return any(values.get(surface) == "是" for surface in ELEVATE_SURFACES)
 
 
 def claims_independent_review(status: str | None, elevated: bool) -> bool:

@@ -18,6 +18,7 @@ SURFACES = """
 - 权限/敏感数据：否
 - 外部副作用：否
 - 不可逆：否
+- 生产或批量：否
 """
 
 SPEC = """# Spec
@@ -161,15 +162,25 @@ class CheckSpecTest(unittest.TestCase):
             with self._args(root, "delivery"):
                 self.assertEqual(main(), 0)
 
-    def test_spec_surface_requires_independent_review(self) -> None:
+    def test_spec_elevate_surface_requires_independent_review(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             (root / "spec.md").write_text(
-                SPEC.replace("数据写入/删除：否", "数据写入/删除：是"),
+                SPEC.replace("权限/敏感数据：否", "权限/敏感数据：是"),
                 encoding="utf-8",
             )
             with self._args(root, "draft"):
                 self.assertEqual(main(), 1)
+
+    def test_ordinary_data_write_does_not_require_independent_review(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            spec = SPEC.replace("数据写入/删除：否", "数据写入/删除：是")
+            spec = spec.replace("风险：低", "风险：高")
+            spec += "\n- KR-01 [数据写入] → AC-01\n"
+            (root / "spec.md").write_text(spec, encoding="utf-8")
+            with self._args(root, "draft"):
+                self.assertEqual(main(), 0)
 
     def test_legacy_standard_tier_still_accepted(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
