@@ -1,5 +1,7 @@
 # Delivery Review：{{标题}}
 
+给人看的可选记录，不是 `check_spec` 门禁。
+
 > 审核的 Spec：v{{n}}
 > 审核者：{{当前 Agent / 新 Agent / 不同模型 / 人工}}
 > 审核范围：{{任务、AC、证据、风险与遗留项}}

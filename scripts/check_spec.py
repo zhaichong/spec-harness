@@ -213,7 +213,10 @@ def validate_confirmation(spec: str, errors: list[str]) -> None:
 
 
 def validate_delivery_review(directory: Path, spec: str, errors: list[str]) -> None:
-    review = read(directory / "check_reports" / "delivery-review.md", errors)
+    path = directory / "check_reports" / "delivery-review.md"
+    if not path.is_file():
+        return
+    review = read(path, errors)
     if not review:
         return
     for label in ("审核的 Spec", "审核者", "审核范围", "审核来源", "审核结论"):
@@ -229,8 +232,28 @@ def validate_delivery_review(directory: Path, spec: str, errors: list[str]) -> N
 def require_nonempty(directory: Path, relative: str, errors: list[str]) -> None:
     path = directory.joinpath(*relative.split("/"))
     text = read(path, errors)
-    if text is not None and path.is_file() and not text.strip():
+    if path.is_file() and not text.strip():
         errors.append(f"文件为空：{relative}")
+
+
+def validate_strict_session_log(directory: Path, errors: list[str]) -> None:
+    text = read(directory / "session" / "log.md", errors)
+    if not text:
+        return
+    if "无外部副作用" in text:
+        return
+    for line in text.splitlines():
+        if not line.startswith("|"):
+            continue
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if not cells or cells[0] in {"操作", ":---", "---"} or set(cells[0]) <= {"-"}:
+            continue
+        if cells[0].startswith("无"):
+            return
+        quote = cells[3] if len(cells) >= 4 else ""
+        if not unresolved(quote):
+            return
+    errors.append("Strict 外部授权记录必须写无，或填写用户确认原话")
 
 
 def validate_delivery(directory: Path, spec: str, acs: list[tuple[str, str, str]], errors: list[str]) -> None:
@@ -238,7 +261,7 @@ def validate_delivery(directory: Path, spec: str, acs: list[tuple[str, str, str]
     validate_delivery_review(directory, spec, errors)
     if process_tier(spec) == "Strict":
         require_nonempty(directory, "plan.md", errors)
-        require_nonempty(directory, "session/log.md", errors)
+        validate_strict_session_log(directory, errors)
 
     tasks = read(directory / "tasks.md", errors)
     report = read(directory / "check_reports" / "harness-check.md", errors)

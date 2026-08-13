@@ -98,6 +98,14 @@ class CheckSpecTest(unittest.TestCase):
             with self._args(root, "delivery"):
                 self.assertEqual(main(), 0)
 
+    def test_delivery_does_not_require_delivery_review(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.make_artifacts(root)
+            (root / "check_reports" / "delivery-review.md").unlink()
+            with self._args(root, "delivery"):
+                self.assertEqual(main(), 0)
+
     def test_delivery_rejects_orphaned_ac(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -121,6 +129,37 @@ class CheckSpecTest(unittest.TestCase):
             (root / "evidence" / "AC-01-test.txt").unlink()
             with self._args(root, "delivery"):
                 self.assertEqual(main(), 1)
+
+    def _write_strict_delivery(self, root: Path, log: str, confirm: str = "v2，确认") -> None:
+        (root / "check_reports").mkdir()
+        (root / "evidence").mkdir()
+        (root / "session").mkdir()
+        spec = STRICT_SPEC.replace("用户确认：待确认", f"用户确认：{confirm}")
+        (root / "spec.md").write_text(spec, encoding="utf-8")
+        (root / "plan.md").write_text("# Plan\ncontrolled migration\n", encoding="utf-8")
+        (root / "session" / "independent-review.md").write_text(STRICT_REVIEW, encoding="utf-8")
+        (root / "session" / "log.md").write_text(log, encoding="utf-8")
+        (root / "tasks.md").write_text(
+            TASKS.replace("AC-01", "AC-01").replace("实现示例", "执行迁移"),
+            encoding="utf-8",
+        )
+        report = REPORT.replace("自动化", "可复现命令").replace("pytest test_example", "python migrate.py --dry-run")
+        (root / "check_reports" / "harness-check.md").write_text(report, encoding="utf-8")
+        (root / "evidence" / "AC-01-test.txt").write_text("python migrate.py --dry-run: ok", encoding="utf-8")
+
+    def test_strict_delivery_requires_external_auth_or_none(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self._write_strict_delivery(root, "# Log\n| 操作 | 范围 | 预览 | 用户确认原话 | 失效 |\n|---|---|---|---|---|\n| 迁移 | prod | dry-run | | 范围变化 |\n")
+            with self._args(root, "delivery"):
+                self.assertEqual(main(), 1)
+
+    def test_strict_delivery_accepts_no_side_effect_log(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self._write_strict_delivery(root, "# Log\n无外部副作用\n")
+            with self._args(root, "delivery"):
+                self.assertEqual(main(), 0)
 
     def test_strict_draft_requires_real_review_record(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
