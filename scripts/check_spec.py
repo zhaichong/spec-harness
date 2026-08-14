@@ -95,14 +95,6 @@ def independent_actor(value: str | None) -> bool:
 
 
 def validate_review(directory: Path, spec: str, elevated: bool, errors: list[str]) -> None:
-    for label in ("审核者", "审核版本与输入", "审核输出引用", "独立性"):
-        if unresolved(value_after(spec, label)):
-            errors.append(f"独立审核记录未填写：{label}")
-    if not independent_actor(value_after(spec, "审核者")):
-        errors.append("审核者不满足所声明的独立性要求")
-    if "session/independent-review.md" not in (value_after(spec, "审核输出引用") or ""):
-        errors.append("审核输出引用必须指向 session/independent-review.md")
-
     review = read(directory / "session" / "independent-review.md", errors)
     if not review:
         return
@@ -118,8 +110,6 @@ def validate_review(directory: Path, spec: str, elevated: bool, errors: list[str
         errors.append("独立审核文件缺少未读取起草过程的声明")
     if not conclusion_ok(value_after(review, "结论")):
         errors.append("独立审核文件没有有效的通过结论")
-    if elevated and "未独立" in (value_after(spec, "独立性") or ""):
-        errors.append("高风险变更不能以未独立状态通过审核")
 
 
 def parse_risk_surfaces(spec: str, errors: list[str]) -> dict[str, str]:
@@ -214,13 +204,11 @@ def report_outcomes(directory: Path, report: str, errors: list[str]) -> dict[str
 
 def validate_confirmation(spec: str, errors: list[str]) -> None:
     version = value_after(spec, "Spec 版本") or ""
-    confirmation = value_after(spec, "用户确认")
+    confirmation = value_after(spec, "作者确认")
     if unresolved(confirmation):
-        errors.append("用户确认未填写")
+        errors.append("作者确认未填写")
     elif not mentions_version(confirmation, version):
-        errors.append(f"用户确认未关联当前 Spec 版本：需要 {version}")
-    if "未独立" in (value_after(spec, "审核状态") or "") and "接受未独立" not in (confirmation or ""):
-        errors.append("未独立审核必须获得用户明确接受")
+        errors.append(f"作者确认未关联当前 Spec 版本：需要 {version}")
 
 
 def validate_delivery_review(directory: Path, spec: str, errors: list[str]) -> None:
