@@ -26,7 +26,7 @@ SPEC = """# Spec
 > Spec 版本：v1
 > 原始需求：增加示例功能
 > 审核状态：未独立（用户明确接受）
-> 用户确认：v1，确认；接受未独立审核
+> 作者确认：v1，确认；接受未独立审核
 """ + SURFACES + """
 ## 验收标准
 - [ ] **AC-01** [风险：低] [证据类型：自动化] 示例行为可验证
@@ -58,7 +58,7 @@ STRICT_SPEC = """# Spec
 > Spec 版本：v2
 > 原始需求：执行受控迁移
 > 审核状态：fresh review
-> 用户确认：待确认
+> 作者确认：待确认
 """ + SURFACES + """
 ## 验收标准
 - [ ] **AC-01** [风险：高] [证据类型：可复现命令] dry-run 输出可复核
@@ -135,7 +135,7 @@ class CheckSpecTest(unittest.TestCase):
         (root / "check_reports").mkdir()
         (root / "evidence").mkdir()
         (root / "session").mkdir()
-        spec = STRICT_SPEC.replace("用户确认：待确认", f"用户确认：{confirm}")
+        spec = STRICT_SPEC.replace("作者确认：待确认", f"作者确认：{confirm}")
         (root / "spec.md").write_text(spec, encoding="utf-8")
         (root / "plan.md").write_text("# Plan\ncontrolled migration\n", encoding="utf-8")
         (root / "session" / "independent-review.md").write_text(STRICT_REVIEW, encoding="utf-8")
@@ -312,7 +312,7 @@ class CheckSpecTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             self.make_artifacts(root)
-            (root / "spec.md").write_text(SPEC.replace("用户确认：v1，确认", "用户确认：v10，确认"), encoding="utf-8")
+            (root / "spec.md").write_text(SPEC.replace("作者确认：v1，确认", "作者确认：v10，确认"), encoding="utf-8")
             with self._args(root, "delivery"):
                 self.assertEqual(main(), 1)
 
